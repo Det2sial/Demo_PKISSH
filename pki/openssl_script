@@ -1,5 +1,49 @@
+# create dir
+cd ~/Project/pkixssh-demo/pki
+mkdir ./CA
+cd ./CA
+mkdir certs conf private
+chmod 700 private
+echo '01' > serial
+touch index.txt
+cp ~/Project/pkixssh-demo/pki/openssl_ca.cnf ./conf
+
+
 # export the ca config file
-export ~/Project/PKIxSSH/pki/openssl_ca.cnf
+export OPENSSL_CONF=~/Project/pkixssh-demo/pki/CA/conf/openssl_ca.cnf
 
-# generate CA cert
+# generate root ca
+# default value is not used since I use 'openssl req' instead of 'openssl ca'
+openssl req -x509 -newkey rsa:2048 -keyout cakey.pem -passout pass:sweetroll -out cacert.pem -outform PEM -days 3650 \
+-subj "/C=US/ST=Colorado/O=Grimer Softwork/OU=R&D/CN=Root"
 
+cp cakey.pem ./private
+cp cacert.pem ./certs
+
+openssl x509 -in cacert.pem -text
+
+# generate ssh key
+cd ~/.ssh
+ssh-keygen -t rsa -b 2048 -m PEM -f ~/.ssh/id_rsa_ssh_valid -N ""
+
+# generate usr cert
+
+
+cd ~/Project/pkixssh-demo/pki
+mkdir peer
+cd peer
+mkdir certs conf private
+chmod 700 private
+
+cp ~/Project/pkixssh-demo/pki/openssl_usr.cnf ./conf
+export OPENSSL_CONF=~/Project/pkixssh-demo/pki/peer/conf/openssl_usr.cnf
+cp ~/.ssh/id_rsa_ssh_valid ./
+
+cd ~/Project/pkixssh-demo/pki/peer
+openssl req -new -key ~/.ssh/id_rsa_ssh_valid -out usrvalid.csr
+openssl x509 -req -days 1825 -in usrvalid.csr -out usrvalid.crt -CA ~/Project/pkixssh-demo/pki/CA/cacert.pem -CAkey ~/Project/pkixssh-demo/pki/CA/cakey.pem -passin pass:sweetroll -CAcreateserial
+openssl x509 -in usrvalid.crt -subject -issuer -alias >> peer_ssh_valid
+ssh-keygen -y -f peer_ssh_valid > peer_ssh_valid.pub
+
+cp peer_ssh_valid ~/.ssh/
+cp peer_ssh_valid.pub ~/.ssh/
