@@ -1,0 +1,5 @@
+# export the ca config file
+export ~/Project/PKIxSSH/pki/openssl_ca.cnf
+
+# generate CA cert
+
