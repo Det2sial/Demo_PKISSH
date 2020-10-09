@@ -22,9 +22,7 @@ cp cacert.pem ./certs
 
 openssl x509 -in cacert.pem -text
 
-# generate ssh key
-cd ~/.ssh
-ssh-keygen -t rsa -b 2048 -m PEM -f ~/.ssh/id_rsa_ssh_valid -N ""
+
 
 # generate usr cert
 
@@ -35,15 +33,28 @@ cd peer
 mkdir certs conf private
 chmod 700 private
 
+# generate ssh key
+ssh-keygen -t rsa -b 2048 -m PEM -f id_rsa_ssh_valid -N ""
+
+
 cp ~/Project/pkixssh-demo/pki/openssl_usr.cnf ./conf
 export OPENSSL_CONF=~/Project/pkixssh-demo/pki/peer/conf/openssl_usr.cnf
-cp ~/.ssh/id_rsa_ssh_valid ./
+
 
 cd ~/Project/pkixssh-demo/pki/peer
-openssl req -new -key ~/.ssh/id_rsa_ssh_valid -out usrvalid.csr
+openssl req -new -key id_rsa_ssh_valid -out usrvalid.csr
 openssl x509 -req -days 1825 -in usrvalid.csr -out usrvalid.crt -CA ~/Project/pkixssh-demo/pki/CA/cacert.pem -CAkey ~/Project/pkixssh-demo/pki/CA/cakey.pem -passin pass:sweetroll -CAcreateserial
-openssl x509 -in usrvalid.crt -subject -issuer -alias >> peer_ssh_valid
-ssh-keygen -y -f peer_ssh_valid > peer_ssh_valid.pub
 
-cp peer_ssh_valid ~/.ssh/
-cp peer_ssh_valid.pub ~/.ssh/
+openssl x509 -in usrvalid.crt >> id_rsa_ssh_valid
+ssh-keygen -y -f id_rsa_ssh_valid > id_rsa_ssh_valid.pub
+
+cp id_rsa_ssh_valid ~/.ssh/
+
+# check subject names
+openssl x509 -noout -subject -in usrvalid.crt
+
+
+# copy ca cert to the server and creat authorized_keys file
+scp ~/Project/pkixssh-demo/pki/CA/cacert.pem pi@192.168.0.153:~/Project/pkixssh-demo/pki
+
+
