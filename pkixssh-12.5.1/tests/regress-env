@@ -1,1 +1,1 @@
-EGREP="/usr/bin/grep -E"
+EGREP="/bin/grep -E"

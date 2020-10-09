@@ -1,5 +1,5 @@
 # uncomment if you run a non bourne compatible shell. Ie. csh
-#SHELL = /usr/bin/sh
+#SHELL = /bin/sh
 
 AUTORECONF=autoreconf
 
@@ -50,7 +50,7 @@ AR=ar
 AWK=mawk
 RANLIB=ranlib
 INSTALL=/usr/bin/install -c
-SED=/usr/bin/sed
+SED=/bin/sed
 ENT=
 XAUTH_PATH=/usr/bin/xauth
 XLDFLAGS = 

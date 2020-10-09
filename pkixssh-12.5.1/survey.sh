@@ -14,7 +14,7 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-host="x86_64-pc-linux-gnu"
+host="armv7l-unknown-linux-gnueabihf"
 AWK="mawk"
 CC="gcc"
 CPP="gcc -E"

@@ -1541,7 +1541,7 @@
 /* #undef HAVE_SYS_STREAM_H */
 
 /* Define to 1 if you have the <sys/stropts.h> header file. */
-/* #undef HAVE_SYS_STROPTS_H */
+#define HAVE_SYS_STROPTS_H 1
 
 /* Define to 1 if you have the <sys/strtio.h> header file. */
 /* #undef HAVE_SYS_STRTIO_H */
@@ -1939,7 +1939,7 @@
 /* #undef SANDBOX_SYSTRACE */
 
 /* Specify the system call convention in use */
-#define SECCOMP_AUDIT_ARCH AUDIT_ARCH_X86_64
+#define SECCOMP_AUDIT_ARCH AUDIT_ARCH_ARM
 
 /* Define if your platform breaks doing a seteuid before a setuid */
 /* #undef SETEUID_BREAKS_SETUID */
@@ -1948,7 +1948,7 @@
 #define SIZEOF_INT 4
 
 /* The size of `long int', as computed by sizeof. */
-#define SIZEOF_LONG_INT 8
+#define SIZEOF_LONG_INT 4
 
 /* The size of `long long int', as computed by sizeof. */
 #define SIZEOF_LONG_LONG_INT 8
@@ -2121,7 +2121,7 @@
 #endif
 
 /* Number of bits in a file offset, on hosts where this is settable. */
-/* #undef _FILE_OFFSET_BITS */
+#define _FILE_OFFSET_BITS 64
 
 /* Define for large files, on AIX-style hosts. */
 /* #undef _LARGE_FILES */

@@ -5,8 +5,8 @@
 
 umask 022
 
-CAT=/usr/bin/cat
-KILL=/usr/bin/kill
+CAT=/bin/cat
+KILL=/bin/kill
 
 prefix=/opt/pkix-ssh
 sysconfdir=${prefix}/etc
