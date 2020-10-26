@@ -1,3 +1,8 @@
+##! in VM guest, use bridge to connect network
+
+
+
+
 # create dir
 cd ~/Project/pkixssh-demo/pki
 mkdir ./CA
@@ -43,6 +48,7 @@ export OPENSSL_CONF=~/Project/pkixssh-demo/pki/peer/conf/openssl_usr.cnf
 
 cd ~/Project/pkixssh-demo/pki/peer
 openssl req -new -key id_rsa_ssh_valid -out usrvalid.csr
+openssl req -text -noout -in usrvalid.csr
 openssl x509 -req -days 1825 -in usrvalid.csr -out usrvalid.crt -CA ~/Project/pkixssh-demo/pki/CA/cacert.pem -CAkey ~/Project/pkixssh-demo/pki/CA/cakey.pem -passin pass:sweetroll -CAcreateserial
 
 openssl x509 -in usrvalid.crt >> id_rsa_ssh_valid
@@ -56,5 +62,55 @@ openssl x509 -noout -subject -in usrvalid.crt
 
 # copy ca cert to the server and creat authorized_keys file
 scp ~/Project/pkixssh-demo/pki/CA/cacert.pem pi@192.168.0.153:~/Project/pkixssh-demo/pki
+
+# connect to SSH server
+sudo /opt/pkix-ssh/bin/ssh -i ~/.ssh/id_rsa_ssh_valid -p 2222 pi@192.168.0.153 -v
+
+
+# -------------------------------------------------------- #
+
+# generate server cert (should be on the machine where you issued the CA cert, so that you can have this cert recorded)
+cd /home/grimer/Project/pkixssh-demo/pki
+mkdir server
+cd server
+mkdir certs conf private
+chmod 700 private
+
+# generate ssh key
+ssh-keygen -t rsa -b 2048 -m PEM -f server_rsa_ssh_valid -N ""
+
+cp ~/Project/pkixssh-demo/pki/openssl_server.cnf ./conf
+export OPENSSL_CONF=~/Project/pkixssh-demo/pki/server/conf/openssl_server.cnf
+
+
+cd ~/Project/pkixssh-demo/pki/server
+openssl req -new -key server_rsa_ssh_valid -out servervalid.csr
+openssl req -text -noout -in servervalid.csr
+openssl x509 -req -days 1825 -in servervalid.csr -out servervalid.crt -CA ~/Project/pkixssh-demo/pki/CA/cacert.pem -CAkey ~/Project/pkixssh-demo/pki/CA/cakey.pem -passin pass:sweetroll -CAcreateserial
+
+openssl x509 -in servervalid.crt >> server_rsa_ssh_valid
+ssh-keygen -y -f server_rsa_ssh_valid > server_rsa_ssh_valid.pub
+
+# copy server cert to SSH server (remember to sync up the script!)
+cd ~/Project/pkixssh-demo/pki/server
+
+sudo /opt/pkix-ssh/bin/scp -P 2222 -i ~/.ssh/id_rsa_ssh_valid server_rsa_ssh_valid pi@192.168.0.153:~/Project/pkixssh-demo/pki
+
+sudo /opt/pkix-ssh/bin/scp -P 2222 -i ~/.ssh/id_rsa_ssh_valid servervalid.crt pi@192.168.0.153:~/Project/pkixssh-demo/pki
+
+# in client machine, delete know_hosts file!
+sudo su
+cd ~/.ssh
+ls
+rm known_hosts
+exit
+
+# check cacert.pem is on client side
+cd ~/Project/pkixssh-demo/pki/CA
+sudo cp ~/Project/pkixssh-demo/pki/CA/cacert.pem /opt/pkix-ssh/etc/ca/crt
+ln -s cacert.pem `openssl x509 -in cacert.pem -noout -hash`.0
+
+# connect to SSH server
+sudo /opt/pkix-ssh/bin/ssh -i ~/.ssh/id_rsa_ssh_valid -p 2222 pi@192.168.0.153 -v
 
 
