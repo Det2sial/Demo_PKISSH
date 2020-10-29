@@ -1,7 +1,10 @@
 ##! in VM guest, use bridge to connect network
 
 
-
+#------------------------------------------------------------#
+# This part we use pkix-ssh to perform ssh client
+# Authenticatio with x509 cert
+#------------------------------------------------------------#
 
 # create dir
 cd ~/Project/pkixssh-demo/pki
@@ -19,6 +22,7 @@ export OPENSSL_CONF=~/Project/pkixssh-demo/pki/CA/conf/openssl_ca.cnf
 
 # generate root ca
 # default value is not used since I use 'openssl req' instead of 'openssl ca'
+cd ~/Project/pkixssh-demo/pki/CA
 openssl req -x509 -newkey rsa:2048 -keyout cakey.pem -passout pass:sweetroll -out cacert.pem -outform PEM -days 3650 \
 -subj "/C=US/ST=Colorado/O=Grimer Softwork/OU=R&D/CN=Root"
 
@@ -26,8 +30,6 @@ cp cakey.pem ./private
 cp cacert.pem ./certs
 
 openssl x509 -in cacert.pem -text
-
-
 
 # generate usr cert
 
@@ -47,7 +49,9 @@ export OPENSSL_CONF=~/Project/pkixssh-demo/pki/peer/conf/openssl_usr.cnf
 
 
 cd ~/Project/pkixssh-demo/pki/peer
-openssl req -new -key id_rsa_ssh_valid -out usrvalid.csr
+openssl req -new -key id_rsa_ssh_valid -out usrvalid.csr \
+-subj "/C=US/ST=Colorado/O=Grimer Softwork/OU=R&D/CN=Peer"
+
 openssl req -text -noout -in usrvalid.csr
 openssl x509 -req -days 1825 -in usrvalid.csr -out usrvalid.crt -CA ~/Project/pkixssh-demo/pki/CA/cacert.pem -CAkey ~/Project/pkixssh-demo/pki/CA/cakey.pem -passin pass:sweetroll -CAcreateserial
 
@@ -61,13 +65,18 @@ openssl x509 -noout -subject -in usrvalid.crt
 
 
 # copy ca cert to the server and creat authorized_keys file
-scp ~/Project/pkixssh-demo/pki/CA/cacert.pem pi@192.168.0.153:~/Project/pkixssh-demo/pki
+sudo /opt/pkix-ssh/bin/scp -P 2222 -i ~/.ssh/id_rsa_ssh_valid ~/Project/pkixssh-demo/pki/CA/cacert.pem pi@192.168.0.153:~/Project/pkixssh-demo/pki
+
 
 # connect to SSH server
 sudo /opt/pkix-ssh/bin/ssh -i ~/.ssh/id_rsa_ssh_valid -p 2222 pi@192.168.0.153 -v
 
 
-# -------------------------------------------------------- #
+#------------------------------------------------------------#
+# This part we use pkix-ssh to perform ssh server
+# Authenticatio with x509 cert
+# Note: After that we now have mutual authentication
+#------------------------------------------------------------#
 
 # generate server cert (should be on the machine where you issued the CA cert, so that you can have this cert recorded)
 cd /home/grimer/Project/pkixssh-demo/pki
@@ -98,7 +107,7 @@ sudo /opt/pkix-ssh/bin/scp -P 2222 -i ~/.ssh/id_rsa_ssh_valid server_rsa_ssh_val
 
 sudo /opt/pkix-ssh/bin/scp -P 2222 -i ~/.ssh/id_rsa_ssh_valid servervalid.crt pi@192.168.0.153:~/Project/pkixssh-demo/pki
 
-# in client machine, delete know_hosts file!
+# in client machine, delete know_hosts file! (we use root to run pkix-ssh)
 sudo su
 cd ~/.ssh
 ls
@@ -112,5 +121,146 @@ ln -s cacert.pem `openssl x509 -in cacert.pem -noout -hash`.0
 
 # connect to SSH server
 sudo /opt/pkix-ssh/bin/ssh -i ~/.ssh/id_rsa_ssh_valid -p 2222 pi@192.168.0.153 -v
+
+
+
+
+#------------------------------------------------------------#
+# This part we use openssl to generate root ca and 
+# perform crl revokation
+# https://roll.urown.net/ca/ca_root_setup.html
+#------------------------------------------------------------#
+
+
+cd ~/Project/pkixssh-demo/pki
+mkdir ./revCA
+cd ./revCA
+mkdir newcerts certs certreqs crl private
+chmod 700 private
+touch root-ca.index
+echo 00 > root-ca.crlnum
+# Using random instead of incremental serial numbers is a recommended security practice.
+openssl rand -hex 16 > root-ca.serial
+
+# make sure you export the right cnf file
+export OPENSSL_CONF=~/Project/pkixssh-demo/pki/conf/root-ca.cnf
+
+# generate csr
+openssl req -new -newkey rsa:2048 -keyout revcakey.pem -passout pass:sweetroll -out revcacert.csr -outform PEM -days 3650 \
+-subj "/C=US/ST=Colorado/O=Grimer Softwork/OU=R&D/CN=Revoked Root"
+
+# self sign root (the DB must be updated)
+cd ~/Project/pkixssh-demo/pki/revCA
+openssl rand -hex 16 > root-ca.serial
+openssl ca -selfsign \
+    -in revcacert.csr \
+    -out revcacert.pem \
+    -keyfile ./revcakey.pem \
+    -passin pass:sweetroll \
+    -extensions root-ca_ext \
+    -startdate `date +%y%m%d000000Z -u -d -1day` \
+    -enddate `date +%y%m%d000000Z -u -d +10years+1day`
+
+# view new cert
+# TODO check cnf CRL point distribution
+cd ~/Project/pkixssh-demo/pki/revCA
+openssl x509 -in ./revcacert.pem \
+    -noout -text \
+    -certopt no_version,no_pubkey,no_sigdump \
+    -nameopt multiline
+
+
+# verify root cert
+cd ~/Project/pkixssh-demo/pki/revCA
+openssl verify -verbose -CAfile revcacert.pem \
+    revcacert.pem
+    
+# revocation ( you will see *.crlnum.old and root-ca.crl in crl
+cd ~/Project/pkixssh-demo/pki/revCA
+openssl ca -gencrl -out root-ca.crl -keyfile revcakey.pem -passin pass:sweetroll -cert revcacert.pem
+    
+    
+#------------------------------------------------------------#
+# This part we use openssl to generate peer cert and 
+# perform crl revokation
+# https://roll.urown.net/ca/ca_root_setup.html
+#------------------------------------------------------------#
+
+
+# generate ssh key
+cd ~/Project/pkixssh-demo/pki/revCA
+ssh-keygen -t rsa -b 2048 -m PEM -f id_rsa_ssh_rev -N ""
+
+
+export OPENSSL_CONF=~/Project/pkixssh-demo/pki/conf/usr.cnf
+
+# generate csr
+openssl req -new -key id_rsa_ssh_rev -out revusr.csr \
+-subj "/C=US/ST=Colorado/O=Grimer Softwork/OU=R&D/CN=Revoked Peer"
+
+
+# sign usr csr
+cd ~/Project/pkixssh-demo/pki/revCA
+openssl rand -hex 16 > root-ca.serial
+openssl ca -in revusr.csr \
+    -out revusr.pem \
+    -keyfile revcakey.pem \
+    -cert revcacert.pem \
+    -passin pass:sweetroll \
+    -extensions client_ext \
+    -startdate `date +%y%m%d000000Z -u -d -1day` \
+    -enddate `date +%y%m%d000000Z -u -d +5years+1day`
+
+
+# view new cert
+# TODO check cnf CRL point distribution
+cd ~/Project/pkixssh-demo/pki/revCA
+openssl x509 -in ./revusr.pem \
+    -noout -text \
+    -certopt no_version,no_pubkey,no_sigdump \
+    -nameopt multiline
+
+# update ssh keys
+openssl x509 -in revusr.pem >> id_rsa_ssh_rev
+ssh-keygen -y -f id_rsa_ssh_rev > id_rsa_ssh_rev.pub
+
+# you have to MOVE Identity key to this folder, otherwise it will try PUB key and go to PUB key Auth!!!!
+cp id_rsa_ssh_rev /home/grimer/Project/pkixssh-demo/pki/id_rsa_ssh_rev
+
+# verify root cert
+cd ~/Project/pkixssh-demo/pki/revCA
+openssl verify -verbose -CAfile revcacert.pem \
+    revusr.pem
+    
+# send cacert (use VALID key)
+sudo /opt/pkix-ssh/bin/scp -P 2222 -i ~/.ssh/id_rsa_ssh_valid ~/Project/pkixssh-demo/pki/revCA/revcacert.pem pi@192.168.0.153:~/Project/pkixssh-demo/pki
+
+# test connectivity (crl is not added)
+# you have to MOVE Identity key to this folder, otherwise it will try PUB key and go to PUB key Auth!!!!
+sudo /opt/pkix-ssh/bin/ssh -i /home/grimer/Project/pkixssh-demo/pki/id_rsa_ssh_rev -p 2222 pi@192.168.0.153 -vvvv
+
+
+# revocation ( you will see *.crlnum.old and root-ca.crl in crl
+cd ~/Project/pkixssh-demo/pki/revCA
+openssl ca -revoke revusr.pem -crl_reason keyCompromise -keyfile revcakey.pem -passin pass:sweetroll -cert revcacert.pem
+
+# Refresh the Certificate Revocation List (CRL) every time after revoking a certificate:
+openssl ca -gencrl -out ca.crl -keyfile revcakey.pem -passin pass:sweetroll -cert revcacert.pem
+
+# verify crl
+openssl crl -in ca.crl -outform pem -out cacrl.pem
+cat revcacert.pem cacrl.pem > testcrl.pem
+openssl verify -extended_crl -verbose -CAfile testcrl.pem -crl_check revusr.pem
+
+# send crl (with VALID!)
+sudo /opt/pkix-ssh/bin/scp -P 2222 -i ~/.ssh/id_rsa_ssh_valid ~/Project/pkixssh-demo/pki/revCA/cacrl.pem pi@192.168.0.153:~/Project/pkixssh-demo/pki
+
+# test connectivity (crl is not added)
+# you have to MOVE Identity key to this folder, otherwise it will try PUB key and go to PUB key Auth!!!!
+sudo /opt/pkix-ssh/bin/ssh -i /home/grimer/Project/pkixssh-demo/pki/id_rsa_ssh_rev -p 2222 pi@192.168.0.153 -vvvv
+
+
+
+
 
 
