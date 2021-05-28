@@ -1,0 +1,190 @@
+SHELL=/bin/bash
+srcdir=.
+
+
+all:
+
+
+clean: ldap_clean
+	-rm -f testhostkey_*
+	-rm -f testid_*
+	-rm -f selfid_*
+	-rm -f testocsp_*
+	-rm -fr ca-test/
+	-rm -f ca-?.log
+	-rm -f ca-3.*.log
+	-rm -f va-*.log
+	-rm -f sshd_x509.log
+
+distclean: clean
+	-rm -f Makefile
+
+# ===
+
+check-certs: ca_files hostkeys identities selfidentities ocsp_certs crl_files ldap_files
+	@echo
+	$(SHELL) $(srcdir)/ssh_x509tests.sh
+
+# ===
+ca_files: ca-test/catest.config ca-test/catest-bundle.crt
+
+#user is responsible to recreate X.509 tests files !!!
+#ca-test/catest.config: $(srcdir)/config
+ca-test/catest.config:
+	@echo
+	$(SHELL) $(srcdir)/1-cre_cadb.sh
+
+ca-test/catest-bundle.crt: ca-test/catest.config
+	@echo
+	$(SHELL) $(srcdir)/2-cre_cakeys.sh
+
+# ===
+hostkeys: testhostkey_rsa.certstamp testhostkey_dsa.certstamp
+
+testhostkey_rsa:
+	@$(SHELL) $(srcdir)/2-cre_key.sh rsa server $@
+
+testhostkey_rsa.certstamp: testhostkey_rsa ca-test/catest-bundle.crt
+	@$(SHELL) $(srcdir)/3-cre_certs.sh rsa server testhostkey_rsa
+
+testhostkey_dsa:
+	@$(SHELL) $(srcdir)/2-cre_key.sh dsa server $@
+
+testhostkey_dsa.certstamp: testhostkey_dsa ca-test/catest-bundle.crt
+	@$(SHELL) $(srcdir)/3-cre_certs.sh dsa server testhostkey_dsa
+
+hostkeys: testhostkey_eccnistp256.certstamp
+hostkeys: testhostkey_eccnistp384.certstamp
+hostkeys: testhostkey_eccnistp521.certstamp
+
+testhostkey_eccnistp256:
+	@$(SHELL) $(srcdir)/2-cre_key.sh ec256 server $@
+
+testhostkey_eccnistp256.certstamp: testhostkey_eccnistp256 ca-test/catest-bundle.crt
+	@$(SHELL) $(srcdir)/3-cre_certs.sh ec256 server testhostkey_eccnistp256
+
+testhostkey_eccnistp384:
+	@$(SHELL) $(srcdir)/2-cre_key.sh ec384 server $@
+
+testhostkey_eccnistp384.certstamp: testhostkey_eccnistp384 ca-test/catest-bundle.crt
+	@$(SHELL) $(srcdir)/3-cre_certs.sh ec384 server testhostkey_eccnistp384
+
+testhostkey_eccnistp521:
+	@$(SHELL) $(srcdir)/2-cre_key.sh ec521 server $@
+
+testhostkey_eccnistp521.certstamp: testhostkey_eccnistp521 ca-test/catest-bundle.crt
+	@$(SHELL) $(srcdir)/3-cre_certs.sh ec521 server testhostkey_eccnistp521
+
+
+# ===
+identities: testid_rsa.certstamp testid_dsa.certstamp
+
+testid_rsa:
+	@$(SHELL) $(srcdir)/2-cre_key.sh rsa client $@
+
+testid_rsa.certstamp: testid_rsa ca-test/catest-bundle.crt
+	@$(SHELL) $(srcdir)/3-cre_certs.sh rsa client testid_rsa
+
+testid_dsa:
+	@$(SHELL) $(srcdir)/2-cre_key.sh dsa client $@
+
+testid_dsa.certstamp: testid_dsa ca-test/catest-bundle.crt
+	@$(SHELL) $(srcdir)/3-cre_certs.sh dsa client testid_dsa
+
+identities: testid_eccnistp256.certstamp
+identities: testid_eccnistp384.certstamp
+identities: testid_eccnistp521.certstamp
+
+testid_eccnistp256:
+	@$(SHELL) $(srcdir)/2-cre_key.sh ec256 client $@
+
+testid_eccnistp256.certstamp: testid_eccnistp256 ca-test/catest-bundle.crt
+	@$(SHELL) $(srcdir)/3-cre_certs.sh ec256 client testid_eccnistp256
+
+testid_eccnistp384:
+	@$(SHELL) $(srcdir)/2-cre_key.sh ec384 client $@
+
+testid_eccnistp384.certstamp: testid_eccnistp384 ca-test/catest-bundle.crt
+	@$(SHELL) $(srcdir)/3-cre_certs.sh ec384 client testid_eccnistp384
+
+testid_eccnistp521:
+	@$(SHELL) $(srcdir)/2-cre_key.sh ec521 client $@
+
+testid_eccnistp521.certstamp: testid_eccnistp521 ca-test/catest-bundle.crt
+	@$(SHELL) $(srcdir)/3-cre_certs.sh ec521 client testid_eccnistp521
+
+
+# ===
+selfidentities: selfid_rsa.certstamp selfid_dsa.certstamp
+
+selfid_rsa.certstamp: selfid_rsa
+	@$(SHELL) $(srcdir)/3-cre_certs.sh rsa self selfid_rsa
+
+selfid_rsa:
+	@$(SHELL) $(srcdir)/2-cre_key.sh rsa self $@
+
+selfid_dsa.certstamp: selfid_dsa
+	@$(SHELL) $(srcdir)/3-cre_certs.sh dsa self selfid_dsa
+
+selfid_dsa:
+	@$(SHELL) $(srcdir)/2-cre_key.sh dsa self $@
+
+
+# ===
+#ocsp_certs:
+ocsp_certs: testocsp_rsa.certstamp testocsp_dsa.certstamp
+
+testocsp_rsa.certstamp: testocsp_rsa ca-test/catest-bundle.crt
+	@$(SHELL) $(srcdir)/3-cre_certs.sh rsa ocsp testocsp_rsa
+
+testocsp_rsa:
+	@$(SHELL) $(srcdir)/2-cre_key.sh rsa ocsp $@
+
+testocsp_dsa.certstamp: testocsp_dsa ca-test/catest-bundle.crt
+	@$(SHELL) $(srcdir)/3-cre_certs.sh dsa ocsp testocsp_dsa
+
+testocsp_dsa:
+	@$(SHELL) $(srcdir)/2-cre_key.sh dsa ocsp $@
+
+ocsp_certs: testocsp_eccnistp256.certstamp
+ocsp_certs: testocsp_eccnistp384.certstamp
+ocsp_certs: testocsp_eccnistp521.certstamp
+
+testocsp_eccnistp256.certstamp: testocsp_eccnistp256 ca-test/catest-bundle.crt
+	@$(SHELL) $(srcdir)/3-cre_certs.sh ec256 ocsp testocsp_eccnistp256
+
+testocsp_eccnistp256:
+	@$(SHELL) $(srcdir)/2-cre_key.sh ec256 ocsp $@
+
+testocsp_eccnistp384.certstamp: testocsp_eccnistp384 ca-test/catest-bundle.crt
+	@$(SHELL) $(srcdir)/3-cre_certs.sh ec384 ocsp testocsp_eccnistp384
+
+testocsp_eccnistp384:
+	@$(SHELL) $(srcdir)/2-cre_key.sh ec384 ocsp $@
+
+testocsp_eccnistp521.certstamp: testocsp_eccnistp521 ca-test/catest-bundle.crt
+	@$(SHELL) $(srcdir)/3-cre_certs.sh ec521 ocsp testocsp_eccnistp521
+
+testocsp_eccnistp521:
+	@$(SHELL) $(srcdir)/2-cre_key.sh ec521 ocsp $@
+
+
+# ===
+crl_files: ca-test/catest-bundle.crl
+
+ca-test/catest-bundle.crl: testid_rsa-rsa_sha1 testid_dsa-rsa_sha1
+	@echo
+	$(SHELL) $(srcdir)/4-cre_crls.sh
+
+# ===
+ldap_files:
+#ldap_files: ldap/slapd.conf.tmpl
+
+#ldap/slapd.conf.tmpl:
+#	@echo
+#	$(SHELL) $(srcdir)/5-cre_ldap.sh
+
+ldap_clean:
+#ldap_clean:
+#	-rm -f ldap_setup.log
+#	-rm -fr ldap

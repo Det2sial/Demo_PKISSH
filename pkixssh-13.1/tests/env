@@ -1,0 +1,18 @@
+TEST_SHELL=/bin/bash
+EGREP="/usr/bin/grep -E"
+
+# OCSP enabled
+SSH_OCSP_ENABLED=:
+#SSH_OCSP_ENABLED=false
+
+# LDAP environment:
+#SSH_LDAP_ENABLED=:
+SSH_LDAP_ENABLED=false
+
+#LDAP_SYSCONFDIR=""
+#LDAP_LIBEXECDIR=""
+#LDAP_BINDIR=""
+#LDAPADD=""
+
+# FIPS capable openssl
+OPENSSL_FIPS_MODE=no
