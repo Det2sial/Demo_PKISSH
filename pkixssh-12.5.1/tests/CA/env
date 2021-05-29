@@ -1,8 +1,0 @@
-# LDAP environment:
-#LDAP_SYSCONFDIR=""
-#LDAP_LIBEXECDIR=""
-#LDAP_BINDIR=""
-#LDAPADD=""
-
-# FIPS capable openssl
-OPENSSL_FIPS_MODE=no
