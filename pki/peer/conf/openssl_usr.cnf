@@ -35,7 +35,7 @@ countryName            = US
 stateOrProvinceName    = Colorado
 organizationName       = Grimer Softwork
 organizationalUnitName = R&D
-commonName             = Pi
+commonName             = Peer
 
 [ usr_cert ]
 basicConstraints                = CA:FALSE

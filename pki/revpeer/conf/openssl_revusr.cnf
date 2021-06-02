@@ -2,11 +2,11 @@
 default_ca      = local_ca
 
 [ local_ca ]
-dir             = /home/grimer/project/ssh-demo/pki/CA
-certificate     = $dir/cacert.pem
+dir             = /home/grimer/project/ssh-demo/pki/revCA
+certificate     = $dir/revcacert.pem
 database        = $dir/index.txt
 new_certs_dir   = $dir/certs
-private_key     = $dir/private/cakey.pem
+private_key     = $dir/private/revcakey.pem
 serial          = $dir/serial
 
 default_crl_days        = 365
@@ -35,7 +35,7 @@ countryName            = US
 stateOrProvinceName    = Colorado
 organizationName       = Grimer Softwork
 organizationalUnitName = R&D
-commonName             = Server
+commonName             = Rev Peer
 
 [ usr_cert ]
 basicConstraints                = CA:FALSE
