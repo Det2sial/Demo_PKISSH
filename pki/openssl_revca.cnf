@@ -53,6 +53,6 @@ basicConstraints	= CA:true
 
 # CRL Certificate Extensions
 [ crl_ext ]
-authorityKeyIdentifier  = keyid:always
+authorityKeyIdentifier  = keyid
 issuerAltName           = issuer:copy
 
