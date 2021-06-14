@@ -177,10 +177,35 @@ openssl x509 -noout -subject -in usrvalid.crt
 ```
 ### Client Authentication
 #### Server set-up
-1. On Server side: Input:
+1. On Server side: 
+
+Confirm settings
+
+```shell
+sudo nano /opt/etc/sshd_config
+```
+
+Make sure it is
+
+```shell
+VAType none
+```
+
+also remove host key
+```Shell
+cd /opt/etc/
+sudo rm /opt/etc/ssh_host_rsa_key
+```
+
+Then input
 ```Shell
 sudo /opt/sbin/sshd -d
+
+#sudo kill -9 `sudo lsof -t -i:22`
+
 ```
+
+
 2. Copy CA cert to the server and creat authorized.keys file
 You may need to change hostname in the following command
 ```Shell
@@ -191,6 +216,23 @@ sudo /opt/bin/scp -P 22 -i ~/.ssh/id_rsa_ssh_valid ~/project/ssh-demo/pki/CA/cac
 cd /home/pi/project/ssh-demo/pki
 ls
 ```
+
+```shell
+cd /home/pi/project/ssh-demo/pki
+rm -rf CA
+mkdir ./CA
+cd ./CA
+mkdir certs conf private
+chmod 700 private
+echo '01' > serial
+touch index.txt
+```
+
+```shell
+cd /home/pi/project/ssh-demo/pki/CA
+cp ~/project/ssh-demo/pki/cacert.pem ./
+```
+
 5. On Server side: Bind hash value and check
 ```Shell
 cd /opt/etc/ca
@@ -205,27 +247,43 @@ ls -l
 6. On Server side: config authorized_keys
 ```Shell
 cd /home/pi/project/ssh-demo/pki
-vi ~/.ssh/authorized_keys
+sudo nano ~/.ssh/authorized_keys
 ```
 7. On Server side: Type subject names (Same as in your user cert)
 ```Shell
 x509v3-sign-rsa subject= /C=US/ST=Colorado/O=Grimer Softwork/OU=R&D/CN=Peer
 ```
 8. On Server side: Enable ssh service
-```Shell
-ps aux| grep sshd
-sudo kill -9 xxxx #if sshd is running, type this command with sshd's PID
+
+Confirm settings
+
+```shell
+sudo nano /opt/etc/sshd_config
+```
+
+Make sure it is
+
+```shell
+VAType none
+```
+
+Then run sshd
+
+```shell
 sudo /opt/sbin/sshd -d
 ```
+
 #### Test: Client use peer cert to authenticate to server
 1. On Client side: Clean the known hosts (delete the content)
 ```Shell
-vi ~/.ssh/known_hosts
+sudo su
+rm ~/.ssh/known_hosts
+exit
 ```
 
 2. On Client side: Connect with peer cert
 ```Shell
-sudo /opt/bin/ssh -i ~/.ssh/id_rsa_ssh_valid -p 22 pi@192.168.0.153 -v
+sudo /opt/bin/ssh -i ~/.ssh/id_rsa_ssh_valid -p 22 pi@192.168.0.153 -vvv
 ```
 
 ### Server Authentication
@@ -234,21 +292,12 @@ sudo /opt/bin/ssh -i ~/.ssh/id_rsa_ssh_valid -p 22 pi@192.168.0.153 -v
 ```shell
 sudo /opt/bin/scp -P 22 -i ~/.ssh/id_rsa_ssh_valid ~/project/ssh-demo/pki/CA/cakey.pem pi@192.168.0.153:~/project/ssh-demo/pki
 
-sudo /opt/bin/scp -P 22 -i ~/.ssh/id_rsa_ssh_valid ~/project/ssh-demo/pki/openssl_server.cnf pi@192.168.0.153:~/project/ssh-demo/pki
+sudo /opt/bin/scp -P 22 -i ~/.ssh/id_rsa_ssh_valid ~/project/ssh-demo/pki/{openssl_server,openssl_ca}.cnf pi@192.168.0.153:~/project/ssh-demo/pki
 
-sudo /opt/bin/scp -P 22 -i ~/.ssh/id_rsa_ssh_valid ~/project/ssh-demo/pki/openssl_ca.cnf pi@192.168.0.153:~/project/ssh-demo/pki
 ```
 2.  On Server side: Generate server cert
 ```Shell
-cd ~/project/ssh-demo/pki
-rm -rf CA
-mkdir ./CA
-cd ./CA
-mkdir certs conf private
-chmod 700 private
-echo '01' > serial
-touch index.txt
-
+cd ~/project/ssh-demo/pki/CA
 cp ~/project/ssh-demo/pki/cacert.pem ./
 cp ~/project/ssh-demo/pki/cakey.pem ./
 
@@ -274,7 +323,6 @@ ssh-keygen -t rsa -b 2048 -m PEM -f server_rsa_ssh_valid -N ""
 
 ```Shell
 cd ~/project/ssh-demo/pki/server
-vi ~/project/ssh-demo/pki/openssl_server.cnf # or open in notebook
 
 cp ~/project/ssh-demo/pki/openssl_server.cnf ./conf
 
@@ -351,7 +399,6 @@ chmod 700 private
 echo '01' > serial
 echo '00' >revca.crlnum
 touch index.txt
-ssh-keygen -t rsa -b 2048 -m PEM -f id_rsa_ssh_revca -N ""
 ```
 
 2.  Export the CA config file  
@@ -370,8 +417,10 @@ export OPENSSL_CONF=~/project/ssh-demo/pki/revCA/conf/openssl_revca.cnf
 # default value is not used since I use 'openssl req' instead of 'openssl ca'
 
 cd ~/project/ssh-demo/pki/revCA
+
 openssl req -x509 -newkey rsa:2048 -keyout revcakey.pem -passout pass:Sweetroll -out revcacert.pem -outform PEM -days 3650 \
 -subj "/C=US/ST=Colorado/O=Grimer Softwork/OU=R&D/CN=Rev Root"
+
 cp revcakey.pem ./private
 cp revcacert.pem ./certs
 openssl x509 -in revcacert.pem -text
@@ -381,7 +430,14 @@ openssl x509 -in revcacert.pem -text
 ```Shell
 cd ~/project/ssh-demo/pki/revCA
 mkdir crl
+export OPENSSL_CONF=~/project/ssh-demo/pki/revCA/conf/openssl_revca.cnf
 openssl ca -gencrl -out crl/revcacert.crl -key Sweetroll
+```
+
+5. check the content of the crl
+```Shell
+cd ~/project/ssh-demo/pki/revCA
+openssl crl -in crl/revcacert.crl -noout -text
 ```
 
 #### Generate Rev Peer cert
@@ -415,8 +471,11 @@ cd ~/project/ssh-demo/pki/revpeer
 openssl req -new -key id_rsa_ssh_revpeer -out revpeer.csr \
 -subj "/C=US/ST=Colorado/O=Grimer Softwork/OU=R&D/CN=Rev Peer"
 openssl req -text -noout -in revpeer.csr
+
 openssl x509 -req -days 1825 -in revpeer.csr -out revpeer.crt -CA ~/project/ssh-demo/pki/revCA/revcacert.pem -CAkey ~/project/ssh-demo/pki/revCA/revcakey.pem -passin pass:Sweetroll -CAcreateserial
+
 openssl x509 -in revpeer.crt >> id_rsa_ssh_revpeer
+
 ssh-keygen -y -f id_rsa_ssh_revpeer > id_rsa_ssh_revpeer.pub
 cp id_rsa_ssh_revpeer ~/.ssh/
 ```
@@ -463,11 +522,20 @@ sudo ln -s revcacert.pem `openssl x509 -in revcacert.pem -noout -hash`.0
 ls -l
 ```
 
+remove crl
+
+```shell
+cd /opt/etc/ca
+ls -l
+sudo rm -rf crl
+ls -l
+```
+
 6.  On Server side: config authorized\_keys
 
 ```shell
 cd /home/pi/project/ssh-demo/pki
-vi ~/.ssh/authorized_keys
+sudo nano ~/.ssh/authorized_keys
 ```
 
 7.  On Server side: Type subject names (Same as in your user cert)
@@ -479,8 +547,6 @@ x509v3-sign-rsa subject= /C=US/ST=Colorado/O=Grimer Softwork/OU=R&D/CN=Rev Peer
 8.  On Server side: Enable ssh service
 
 ```shell
-ps aux| grep sshd
-sudo kill -9 xxxx #if sshd is running, type this command with sshd's PID
 sudo /opt/sbin/sshd -d
 ```
 
@@ -517,8 +583,6 @@ openssl verify -extended_crl -verbose -CAfile revcacrl.pem -crl_check ~/project/
 
 4. send crl (with VALID!)
 ```Shell
-sudo /opt/bin/scp -P 22 -i ~/.ssh/id_rsa_ssh_valid ~/project/ssh-demo/pki/revCA/revcacrl.pem pi@192.168.0.153:~/project/ssh-demo/pki
-sudo /opt/bin/scp -P 22 -i ~/.ssh/id_rsa_ssh_valid ~/project/ssh-demo/pki/revCA/cacrl.pem pi@192.168.0.153:~/project/ssh-demo/pki
 sudo /opt/bin/scp -P 22 -i ~/.ssh/id_rsa_ssh_valid ~/project/ssh-demo/pki/revCA/crl/revcacert.crl pi@192.168.0.153:~/project/ssh-demo/pki
 ```
 
@@ -847,4 +911,94 @@ sudo /opt/sbin/sshd -d
 
 ```shell
 sudo /opt/bin/ssh -i ~/.ssh/id_rsa_ssh_ocsp -p 22 pi@192.168.0.153 -vvv
+```
+
+### MFA (with DUO)
+Reference: https://duo.com/docs/duounix
+
+0. sign in to the DUO admin panel and choose 'protect an application', then click `unix application` and get api key.
+
+1.  On server side: install duo_unix
+
+```shell
+cd ~/project/ssh-demo/
+rm -rf MFA
+mkdir MFA
+cd MFA
+wget https://dl.duosecurity.com/duo_unix-latest.tar.gz
+tar zxf duo_unix-latest.tar.gz
+cd duo_unix-1.11.4
+```
+
+2. Build and install `duo_unix` with PAM support ( `pam_duo`).
+```shell
+cd /home/pi/project/ssh-demo/MFA/duo_unix-1.11.4
+./configure --with-pam --prefix=/usr && make && sudo make install
+```
+
+3. Once `duo_unix` is installed, edit `/etc/duo/pam_duo.conf` (in `/etc/duo` or `/etc/security`) to add the integration key, secret key, and API hostname from your Duo Unix application.
+
+```shell
+sudo nano /etc/duo/pam_duo.conf
+```
+
+
+```shell
+[duo]
+; Duo integration key
+ikey = INTEGRATION_KEY
+; Duo secret key
+skey = SECRET_KEY
+; Duo API hostname
+host = API_HOSTNAME
+```
+
+4. make the following changes to your `sshd_config` file
+
+```shell
+sudo nano /opt/etc/sshd_config
+```
+
+
+```shell
+PubkeyAuthentication yes
+PasswordAuthentication no
+```
+
+```shell
+UsePAM yes
+ChallengeResponseAuthentication yes
+UseDNS no
+```
+
+5. set up PAM for SSH pub key
+```Shell
+sudo nano /etc/pam.d/sshd
+```
+confirm
+```Shell
+#@include common-auth
+auth  [success=1 default=ignore] pam_duo.so
+auth  requisite pam_deny.so
+auth  required pam_permit.so
+```
+6. open ssh server
+```shell
+sudo /opt/sbin/sshd -d
+```
+
+7. on client side
+```shell
+sudo /opt/bin/ssh -p 22 pi@192.168.0.153 -vvv
+```
+
+### NETCONF (subsystem)
+#### Installation
+1. check and install external libraries
+```shell
+sudo apt-get install libxml2-dev
+sudo apt-get install libssh2-1 
+sudo apt-get install libncurses5-dev libncursesw5-dev
+sudo apt install zlib1g-dev
+sudo apt-get install libreadline-dev
 ```
