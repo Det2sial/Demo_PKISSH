@@ -1,0 +1,121 @@
+.Dd September 3, 2010
+.Dt PAM_DUO 8
+.Os
+.Sh NAME
+.Nm pam_duo
+.Nd PAM module for Duo authentication
+.Sh SYNOPSIS
+pam_duo.so
+.Op Cm conf= Ns Aq Ar FILENAME
+.Sh DESCRIPTION
+.Nm
+provides secondary authentication (typically after successful
+password-based authentication) through the Duo authentication service.
+.Sh OPTIONS
+PAM module configuration options supported:
+.Pp
+.Bl -tag -width ".Cm failmode"
+.It conf
+Specify an alternate configuration file to load. Default is 
+.Pa /etc/duo/pam_duo.conf
+.It debug
+Debug mode; send log messages to stderr instead of syslog.
+.El
+.Sh CONFIGURATION
+The INI-format configuration file must have a
+.Dq Li duo
+section with the following options:
+.Pp
+.Bl -tag -width ".Cm failmode"
+.It Cm host
+Duo API host (required).
+.It Cm ikey
+Duo integration key (required).
+.It Cm skey
+Duo secret key (required).
+.It Cm groups
+If specified, Duo authentication is required only for users whose
+primary group or supplementary group list matches one of the
+space-separated 
+.Em pattern-lists
+(see
+.Sx PATTERNS
+below).
+.It Cm failmode
+On service or configuration errors that prevent Duo authentication, fail
+.Dq Li safe
+(allow access) or
+.Dq Li secure
+(deny access). Default is
+.Dq Li safe .
+.It Cm pushinfo
+Send command to be approved via Duo Push authentication. Default is
+.Dq Li no .
+.It Cm http_proxy
+Use the specified HTTP proxy, same format as the HTTP_PROXY environment
+variable.
+.It Cm autopush
+Automatically send a login request to the first factor (usually push),
+instead of prompting the user. Default is "no".
+.It Cm prompts
+Set the maxiumum number of prompts pam_duo will show before denying access.
+Default is 3.
+.It Cm fallback_local_ip
+If unable to detect the authorizing user's IP address, fallback on the server's
+IP. Default is "no".
+.It Cm send_gecos
+Instead of using the unix username, send Duo the contents of the GECOS field
+from /etc/passwd.  Default is "no".
+.El
+.Pp
+An example configuration file:
+.Bd -literal -offset 8n
+[duo]
+host = api-deadbeef.duosecurity.com
+ikey = SI9F...53RI
+skey = 4MjR...Q2NmRiM2Q1Y
+pushinfo = yes
+autopush = yes
+.Ed
+.Pp
+Other authentication restrictions may be implemented using 
+.Xr pam_listfile 8 ,
+.Xr pam_access 8 ,
+etc.
+.Sh PATTERNS
+A
+.Em pattern
+consists of zero or more non-whitespace characters,
+.Sq *
+(a wildcard that matches zero or more characters),
+or
+.Sq ?\&
+(a wildcard that matches exactly one character).
+.Pp
+A 
+.Em pattern-list
+is a comma-separated list of patterns. Patterns within pattern-lists
+may be negated by preceding them with an exclamation mark
+.Pq Sq !\& .
+For example, to specify Duo authentication for all users (except those
+that are also admins), and for guests:
+.Pp
+.Dl groups = users,!wheel,!*admin guests
+.Sh FILES
+.Bl -tag -width ".Cm failmode"
+.It Pa /etc/duo/pam_duo.conf
+Default configuration file path
+.El
+.Sh AUTHORS
+.Nm
+was written by 
+.An "Duo Security" Aq support@duosecurity.com
+.Sh NOTES
+When used with OpenSSH's 
+.Xr sshd 8 ,
+only PAM-based authentication can be protected with this module;
+pubkey authentication bypasses PAM entirely. OpenSSH's PAM
+integration also does not honor an interactive 
+.Xr pam_conv 3
+conversation, prohibiting real-time Duo status messages (such as
+during voice callback).

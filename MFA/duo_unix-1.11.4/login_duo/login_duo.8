@@ -1,0 +1,189 @@
+.Dd September 3, 2010
+.Dt LOGIN_DUO 8
+.Os
+.Sh NAME
+.Nm login_duo
+.Nd second-factor authentication via Duo login service
+.Sh SYNOPSIS
+login_duo
+.Op Fl d
+.Op Fl c Ar file
+.Op Fl h Ar host
+.Op Fl f Ar user
+.Op Ar command Op Ar args...
+.Sh DESCRIPTION
+.Nm
+provides secondary authentication via the Duo authentication service,
+executing the user's login shell or command only if successful.
+.Pp
+The following options are available:
+.Bl -tag -width ".Cm failmode"
+.It Fl c
+Specify an alternate configuration file to load. Default is
+.Pa /etc/duo/login_duo.conf
+.It Fl d
+Debug mode; send logs to stderr instead of syslog.
+.It Fl h
+Specify the remote IP address for this login (normally 
+taken from the
+.Ev SSH_CONNECTION
+environment variable, if set).
+.It Fl f
+Specify an alternate Duo user to authenticate as.
+.El
+.Pp
+If 
+.Nm
+is installed setuid root (the default), these options are
+only available to the super-user.
+.Pp
+After successful Duo authentication, the user's login shell is
+invoked, or if an alternate
+.Ar command
+or
+.Ev SSH_ORIGINAL_COMMAND
+environment variable is specified, it will be executed via the user's
+shell with a \-c option.
+.Sh CONFIGURATION
+The INI-format configuration file must have a
+.Dq Li duo
+section with the following options:
+.Pp
+.Bl -tag -width ".Cm failmode"
+.It Cm host
+Duo API host (required).
+.It Cm ikey
+Duo integration key (required).
+.It Cm skey
+Duo secret key (required).
+.It Cm groups
+If specified, Duo authentication is required only for users whose
+primary group or supplementary group list matches one of the
+space-separated 
+.Em pattern-lists
+(see
+.Sx PATTERNS
+below).
+.It Cm failmode
+On service or configuration errors that prevent Duo authentication, fail
+.Dq Li safe
+(allow access) or
+.Dq Li secure
+(deny access). Default is
+.Dq Li safe .
+.It Cm pushinfo
+Send command to be approved via Duo Push authentication. Default is
+.Dq Li no .
+.It Cm http_proxy
+Use the specified HTTP proxy, same format as the HTTP_PROXY environment
+variable.
+.It Cm autopush
+Upon successful first-factor authentication, automatically send a login request to the primary second-factor (usually Duo Push). Can be
+.Dq Li yes
+or
+.Dq Li no .
+Default is 
+.Dq Li no .
+.It Cm motd
+Print the contents of 
+.Pa /etc/motd
+to screen after a successful login. Either "yes" or "no."
+Default is "no".
+.It Cm prompts
+Number of login attempts a user gets. Default is 3. If using autopush, it is recommended to set prompts to 1.
+.It Cm accept_env_factor
+Look for factor selection or passcode in the DUO_PASSCODE environment variable,
+before prompting the user. Can override autopush. Default is "no".
+.It Cm fallback_local_ip
+If unable to determine the authentication users's IP address, fallback on the
+IP address of the server. Default is "no".
+.It Cm https_timeout
+Set to the number of seconds to wait for HTTPS responses from Duo Security. If Duo Security takes longer than the configured number of seconds to respond to the preauth API call, the configured failmode is triggered. Other network operations such as DNS resolution, TCP connection establishment, and the SSL handshake have their own independent timeout and retry logic. Default is 0, which disables the HTTPS timeout.
+.El
+.Pp
+An example configuration file:
+.Bd -literal -offset 8n
+[duo]
+host = api-deadbeef.duosecurity.com
+ikey = SI9F...53RI
+skey = 4MjR...Q2NmRiM2Q1Y
+pushinfo = yes
+autopush = yes
+.Ed
+.Pp
+If installed setuid root (the default), 
+.Nm
+performs Duo authentication as a dedicated privilege separation user,
+requiring that the configuration file be owned and readable only by
+this user.
+.Sh PATTERNS
+A
+.Em pattern
+consists of zero or more non-whitespace characters,
+.Sq *
+(a wildcard that matches zero or more characters),
+or
+.Sq ?\&
+(a wildcard that matches exactly one character).
+.Pp
+A 
+.Em pattern-list
+is a comma-separated list of patterns. Patterns within pattern-lists
+may be negated by preceding them with an exclamation mark
+.Pq Sq !\& .
+For example, to specify Duo authentication for all users (except those
+that are also admins), and for guests:
+.Pp
+.Dl groups = users,!wheel,!*admin guests
+.Sh EXAMPLES
+.Nm
+can be enabled system-wide by specifying its full path as a
+.Cm ForceCommand 
+in 
+.Xr sshd_config 5
+to capture any SSH remote login (including subsystems, remote
+commands, and interactive login):
+.Bd -literal -offset 8n
+ForceCommand /usr/local/sbin/login_duo
+.Ed
+.Pp
+Similarly, a group of administrators could require two-factor
+authentication for login to a shared root account by specifying
+.Nm
+as the forced command for each public key in
+.Pa ~root/.ssh/authorized_keys :
+.Pp
+.Bd -literal -offset 8n
+command="/usr/local/sbin/login_duo \-f alice"
+ssh-rsa AAAAB2...19Q== alice@example.net
+command="/usr/local/sbin/login_duo \-f bob"
+ssh-dss AAAAC3...51R== bob@example.net
+.Ed
+.Pp
+A user without root access could configure their own account to
+require Duo authentication via the same
+.Pa ~/.ssh/authorized_keys
+forced command mechanism and a user-installed (non-setuid) 
+.Nm .
+.Sh FILES
+.Bl -tag -width ".Cm failmode"
+.It Pa /etc/duo/login_duo.conf
+Default configuration file path
+.El
+.Sh AUTHORS
+.Nm
+was written by 
+.An "Duo Security" Aq support@duosecurity.com
+.Sh NOTES
+When used to protect remote SSH access, only interactive sessions
+support interactive Duo login. For
+.Xr scp 1 ,
+.Xr sftp 1 ,
+.Xr rsync 1 ,
+and other
+.Xr ssh 1
+remote commands, 
+.Nm
+automatically tries the user's default out-of-band factor
+(smartphone push or voice callback) and disables real-time login
+progress reporting to provide a clean shell environment.
