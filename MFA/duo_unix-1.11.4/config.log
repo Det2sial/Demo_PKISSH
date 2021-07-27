@@ -14,7 +14,7 @@ hostname = raspberrypi
 uname -m = armv7l
 uname -r = 5.10.17-v7l+
 uname -s = Linux
-uname -v = #1414 SMP Fri Apr 30 13:20:47 BST 2021
+uname -v = #1421 SMP Thu May 27 14:00:13 BST 2021
 
 /usr/bin/uname -p = unknown
 /bin/uname -X     = unknown
@@ -65,7 +65,7 @@ configure:2951: result: armv7l-unknown-linux-gnueabihf
 configure:2978: autobuild project... duo_unix
 configure:2984: autobuild revision... 1.11.4
 configure:2989: autobuild hostname... raspberrypi
-configure:3000: autobuild timestamp... 20210608T150348Z
+configure:3000: autobuild timestamp... 20210721T163454Z
 configure:3048: checking for style of include used by make
 configure:3076: result: GNU
 configure:3147: checking for gcc
@@ -741,7 +741,7 @@ configure:10036: $? = 0
 configure:10038: result: yes
 configure:10064: checking whether X509_TEA_set_state runs
 configure:10089: gcc -o conftest -g -O2 -Wall -D_FORTIFY_SOURCE=2 -fstack-protector     conftest.c -lssl -lcrypto  >&5
-/usr/bin/ld: /tmp/ccIx6D2f.o: in function `main':
+/usr/bin/ld: /tmp/ccA71zUo.o: in function `main':
 /home/pi/project/ssh-demo/MFA/duo_unix-1.11.4/conftest.c:43: undefined reference to `X509_TEA_set_state'
 collect2: error: ld returned 1 exit status
 configure:10089: $? = 1
@@ -859,7 +859,7 @@ configure:10323: $? = 0
 configure:10323: result: yes
 configure:10323: checking for memset_s
 configure:10323: gcc -o conftest -g -O2 -Wall -D_FORTIFY_SOURCE=2 -fstack-protector   conftest.c  >&5
-/usr/bin/ld: /tmp/cciEqa1c.o: in function `main':
+/usr/bin/ld: /tmp/cc8JQLzx.o: in function `main':
 /home/pi/project/ssh-demo/MFA/duo_unix-1.11.4/conftest.c:86: undefined reference to `memset_s'
 collect2: error: ld returned 1 exit status
 configure:10323: $? = 1
@@ -964,7 +964,7 @@ configure:10345: $? = 0
 configure:10345: result: yes
 configure:10358: checking for strlcpy
 configure:10358: gcc -o conftest -g -O2 -Wall -D_FORTIFY_SOURCE=2 -fstack-protector   conftest.c  >&5
-/usr/bin/ld: /tmp/cc6K77Kl.o: in function `main':
+/usr/bin/ld: /tmp/ccyn3LFS.o: in function `main':
 /home/pi/project/ssh-demo/MFA/duo_unix-1.11.4/conftest.c:88: undefined reference to `strlcpy'
 collect2: error: ld returned 1 exit status
 configure:10358: $? = 1
