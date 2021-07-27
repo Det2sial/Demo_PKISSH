@@ -63,5 +63,8 @@ ssh-keygen -y -f id_rsa_ssh_valid > id_rsa_ssh_valid.pub
 cp id_rsa_ssh_valid ~/.ssh/
 read -p "Below will show the updated identity key file. Press enter to continue"
 less id_rsa_ssh_valid
-read -p "The client config for client Auth is completed. Press enter to exit"
+read -p "Once Server is running, send the CA cert"
+sudo rm /root/.ssh/known_hosts
+sudo /opt/bin/scp -P 22 -i ~/.ssh/id_rsa_ssh_valid ~/project/ssh-demo/pki/{openssl_server,openssl_ca}.cnf ~/project/ssh-demo/pki/CA/cakey.pem ~/project/ssh-demo/pki/CA/cacert.pem pi@192.168.0.153:~/project/ssh-demo/pki
+read -p "The CA cert has been sent, press enter to exit."
 exit 0
